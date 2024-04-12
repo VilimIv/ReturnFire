@@ -18,23 +18,6 @@ public class PlayerNetwork : NetworkBehaviour
         animator = GetComponent<Animator>();
     }
 
-    private void UpdateAnimationState(Vector3 moveDir)
-    {
-        if (moveDir.magnitude == 0f) // Idle
-        {
-            animator.SetFloat("Walk", 0f); // Set animation parameter for Idle (adjust value if needed)
-        }
-        else if (moveDir.magnitude > moveSpeed) // sprint
-        {
-            animator.SetFloat("Walk", 2f); // Set animation parameter for Idle (adjust value if needed)
-        }
-        else
-        {
-            // Set animation based on dominant movement direction (forward/backward or sideways)
-            animator.SetFloat("Walk", Mathf.Abs(moveDir.z) > Mathf.Abs(moveDir.x) ? Mathf.Abs(moveDir.z) : Mathf.Abs(moveDir.x));
-        }
-    }
-
     void Update()
     {
         if (!IsOwner) return;
@@ -58,9 +41,9 @@ public class PlayerNetwork : NetworkBehaviour
 
 
         // Apply sprint speed multiplier only when sprinting
-        moveDir *= (Input.GetKey(KeyCode.LeftShift) && verticalInput > 0f) ? 3f : 1f; // Sprint only when W is pressed
+        moveDir *= (Input.GetKey(KeyCode.LeftShift) && verticalInput > 0f) ? 3*moveSpeed : moveSpeed; // Sprint only when W is pressed
 
-        UpdateAnimationState(moveDir);
+        UpdateAnimationStateServerRpc(moveDir);
 
         // Send movement request to server (including move speed)
         MovementServerRpc(moveDir, moveSpeed);
@@ -72,4 +55,41 @@ public class PlayerNetwork : NetworkBehaviour
         // Authoritative movement logic on the server
         transform.position += moveDirection * clientMoveSpeed * Time.deltaTime;
     }
+
+    [ServerRpc]
+    private void UpdateAnimationStateServerRpc(Vector3 moveDir)
+    {
+        if (moveDir.magnitude == 0f) // Idle
+        {
+            animator.SetFloat("Walk", 0f);
+        }
+        else
+        {
+            float forwardValue = Vector3.Dot(moveDir, transform.forward);
+            float rightValue = Vector3.Dot(moveDir, transform.right);
+
+            if (forwardValue < 0f) // Walking backwards
+            {
+                animator.SetFloat("Walk", -1f);
+            }
+            else if (forwardValue > 0f) // Walking forwards
+            {
+                if (Input.GetKey(KeyCode.LeftShift)) // Sprinting
+                {
+                    animator.SetFloat("Walk", 2f);
+                }
+                else // Walking normally
+                {
+                    animator.SetFloat("Walk", 1f);
+                }
+            }
+            else if (Mathf.Abs(rightValue) > 0f) // Walking sideways
+            {
+                animator.SetFloat("Walk", 1f);
+            }
+        }
+    }
+
+
+
 }
