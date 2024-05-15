@@ -5,10 +5,8 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UI_Manager : MonoBehaviour
+public class UI_Manager : NetworkBehaviour
 {
-    [SerializeField]
-    private Button startServerButton;
 
     [SerializeField]
     private Button startHostButton;
@@ -40,19 +38,6 @@ public class UI_Manager : MonoBehaviour
             {
 
                 Debug.Log("Host could not be started.");
-            }
-        });
-
-        startServerButton.onClick.AddListener(() =>
-        {
-            if (NetworkManager.Singleton.StartServer())
-            {
-                Debug.Log("Server started...");
-            }
-            else
-            {
-
-                Debug.Log("Server could not be started.");
             }
         });
 

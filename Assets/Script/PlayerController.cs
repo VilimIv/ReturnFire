@@ -1,95 +1,57 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using Unity.Netcode;
-using static UnityEngine.UI.GridLayoutGroup;
-using Unity.Netcode.Components;
+using UnityEngine;
 
-public class PlayerNetwork : NetworkBehaviour
+public class PlayerController : NetworkBehaviour
 {
-    // Store movement direction locally
-    private Vector3 moveDir = Vector3.zero;
-    private float moveSpeed = 3f;
-    private Animator animator;
+    [SerializeField] private Rigidbody rb;
+    [SerializeField] private float moveSpeed = 3f;
 
-    void Awake()
+    void Start()
     {
-        // ... existing code
-        animator = GetComponent<Animator>();
+        // Get the Rigidbody component if not assigned in the inspector
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
+
+        // Freeze rotation to prevent unwanted rotation
+        rb.freezeRotation = true;
     }
 
     void Update()
     {
-        if (!IsOwner) return;
-
-        // Get input only on the owner
-        moveDir = Vector3.zero;
-
-        // Check for horizontal (A/D) and vertical (W/S) movement
-        float horizontalInput = Input.GetAxis("Horizontal");
-        float verticalInput = Input.GetAxis("Vertical");
-
-        // Handle diagonal movement with magnitude adjustment for a 45-degree angle
-        if (Mathf.Abs(horizontalInput) > 0 && Mathf.Abs(verticalInput) > 0)
+        if (IsLocalPlayer)
         {
-            moveDir = (transform.forward * Mathf.Sign(verticalInput) + transform.right * Mathf.Sign(horizontalInput)) * Mathf.Sqrt(0.5f);
+            // Get input only for the local player
+            Vector3 moveDir = Vector3.zero;
+
+            if (Input.GetKey(KeyCode.W)) moveDir = transform.forward;
+            if (Input.GetKey(KeyCode.S)) moveDir = -transform.forward;
+            if (Input.GetKey(KeyCode.A)) moveDir = -transform.right;
+            if (Input.GetKey(KeyCode.D)) moveDir = transform.right;
+
+            // Send the movement command to the server
+            MovePlayerServerRpc(moveDir);
         }
-        else // Handle single direction movement
-        {
-            moveDir = transform.forward * verticalInput + transform.right * horizontalInput;
-        }
-
-
-        // Apply sprint speed multiplier only when sprinting
-        moveDir *= (Input.GetKey(KeyCode.LeftShift) && verticalInput > 0f) ? 3*moveSpeed : moveSpeed; // Sprint only when W is pressed
-
-        UpdateAnimationStateServerRpc(moveDir);
-
-        // Send movement request to server (including move speed)
-        MovementServerRpc(moveDir, moveSpeed);
     }
 
     [ServerRpc]
-    private void MovementServerRpc(Vector3 moveDirection, float clientMoveSpeed)
+    private void MovePlayerServerRpc(Vector3 moveDirection)
     {
-        // Authoritative movement logic on the server
-        transform.position += moveDirection * clientMoveSpeed * Time.deltaTime;
+        // Call a method to apply movement on the server
+        MovePlayer(moveDirection);
+        // Send the movement command to all clients
+        MovePlayerClientRpc(moveDirection);
     }
 
-    [ServerRpc]
-    private void UpdateAnimationStateServerRpc(Vector3 moveDir)
+    [ClientRpc]
+    private void MovePlayerClientRpc(Vector3 moveDirection)
     {
-        if (moveDir.magnitude == 0f) // Idle
-        {
-            animator.SetFloat("Walk", 0f);
-        }
-        else
-        {
-            float forwardValue = Vector3.Dot(moveDir, transform.forward);
-            float rightValue = Vector3.Dot(moveDir, transform.right);
-
-            if (forwardValue < 0f) // Walking backwards
-            {
-                animator.SetFloat("Walk", -1f);
-            }
-            else if (forwardValue > 0f) // Walking forwards
-            {
-                if (Input.GetKey(KeyCode.LeftShift)) // Sprinting
-                {
-                    animator.SetFloat("Walk", 2f);
-                }
-                else // Walking normally
-                {
-                    animator.SetFloat("Walk", 1f);
-                }
-            }
-            else if (Mathf.Abs(rightValue) > 0f) // Walking sideways
-            {
-                animator.SetFloat("Walk", 1f);
-            }
-        }
+        // Call a method to apply movement on all clients
+        MovePlayer(moveDirection);
     }
 
-
-
+    private void MovePlayer(Vector3 moveDirection)
+    {
+        // Apply force to the Rigidbody in the moveDirection
+        rb.AddForce(moveDirection * moveSpeed, ForceMode.VelocityChange);
+    }
 }
