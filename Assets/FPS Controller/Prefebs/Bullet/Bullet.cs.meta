@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 2aff7adb0a685de48af42fb732a3501d
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+<<<<<<< HEAD
+  defaultReferences:
+  - OnHitAffect: {instanceID: 0}
+  - FireSound: {instanceID: 0}
+=======
+  defaultReferences: []
+>>>>>>> 789a03c02e18d62d16445d7bad6b050633dcd5fb
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
